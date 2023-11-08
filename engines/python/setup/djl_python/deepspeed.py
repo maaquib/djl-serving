@@ -158,9 +158,11 @@ class DeepSpeedService(object):
             kwargs = {
                 "max_batch_size":
                 int(properties.get("max_rolling_batch_size", 4)),
-                "max_seq_len": 1024,
+                "max_seq_len": int(properties.get("max_seq_len", 1024)),
                 "tokenizer": self.tokenizer
             }
+            if "output_formatter" in properties:
+                kwargs["output_formatter"] = properties.get("output_formatter")
             self.rolling_batch = DeepSpeedRollingBatch(self.model, self.device,
                                                        properties, **kwargs)
         else:
@@ -531,11 +533,22 @@ class DeepSpeedService(object):
         return input_data, input_size, parameters, errors, batch
 
     def inference(self, inputs: Input):
+        outputs = Output()
         input_data, input_size, params, errors, batch = self.parse_input(
             inputs)
+        if len(input_data) == 0:
+            for i in range(len(batch)):
+                err = errors.get(i)
+                if self.enable_rolling_batch:
+                    err = {"data": "", "last": True, "code": 424, "error": err}
+                    outputs.add(Output.binary_encode(err),
+                                key="data",
+                                batch_index=i)
+                else:
+                    outputs.add(err, key="data", batch_index=i)
+            return outputs
         parameters = params[0]
 
-        outputs = Output()
         if self.enable_rolling_batch:
             if inputs.get_property("reset_rollingbatch"):
                 self.rolling_batch.reset()
