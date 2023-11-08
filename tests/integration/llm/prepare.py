@@ -823,6 +823,7 @@ def build_trtllm_handler_model(model):
     options = trtllm_handler_list[model]
     write_model_artifacts(options)
 
+
 def build_deepspeed_rolling_batch_model(model):
     if model not in deepspeed_rolling_batch_model_list.keys():
         raise ValueError(
