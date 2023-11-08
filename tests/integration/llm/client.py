@@ -423,12 +423,6 @@ deepspeed_rolling_batch_model_spec = {
         "seq_length": [64, 128, 256],
         "stream_output": True
     },
-    "falcon-7b": {
-        "max_memory_per_gpu": [25.0],
-        "batch_size": [1],
-        "seq_length": [64, 128, 256],
-        "stream_output": True
-    },
     "open-llama-7b": {
         "max_memory_per_gpu": [25.0],
         "batch_size": [1],

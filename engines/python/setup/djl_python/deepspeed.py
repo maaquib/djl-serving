@@ -117,6 +117,10 @@ class DeepSpeedService(object):
         if self.enable_rolling_batch:
             from djl_python.rolling_batch.deepspeed_rolling_batch import DeepSpeedRollingBatch
             self.model = self.create_ds_module()
+            if not self.ds_config.get("replace_with_kernel_inject", False):
+                raise ValueError(
+                    f"option.rolling_batch=deepspeed only works with kernel_injection models: {OPTIMIZED_MODEL_TYPES}"
+                )
             kwargs = {
                 "max_batch_size":
                 int(properties.get("max_rolling_batch_size", 4)),
