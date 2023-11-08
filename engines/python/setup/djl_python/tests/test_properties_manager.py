@@ -136,6 +136,7 @@ class TestConfigManager(unittest.TestCase):
             'low_cpu_mem_usage': "false",
             'enable_cuda_graph': "True",
             'triangular_masking': "false",
+            "rolling_batch": "auto",
         }
 
         def test_ds_basic_configs():

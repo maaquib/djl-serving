@@ -8,7 +8,7 @@ from typing import Optional, Any
 
 from pydantic import root_validator, validator, Field
 
-from djl_python.properties_manager.properties import Properties
+from djl_python.properties_manager.properties import Properties, RollingBatchEnum
 
 
 class DsQuantizeMethods(str, Enum):
@@ -18,6 +18,9 @@ class DsQuantizeMethods(str, Enum):
 
 SUPPORTED_QUANTIZATION_MODE = [
     DsQuantizeMethods.smoothquant.value, DsQuantizeMethods.dynamicint8.value
+]
+DS_SUPPORTED_ROLLING_BATCH_TYPES = [
+    RollingBatchEnum.auto.value, RollingBatchEnum.deepspeed.value
 ]
 
 
@@ -75,10 +78,10 @@ class DeepSpeedProperties(Properties):
 
     @validator('rolling_batch')
     def validate_rolling_batch(cls, rolling_batch) -> bool:
-        if rolling_batch not in ["deepspeed", "auto"]:
+        if rolling_batch not in DS_SUPPORTED_ROLLING_BATCH_TYPES:
             raise ValueError(
-                "Only `option.rolling_batch=auto` and `option.rolling_batch=deepspeed` "
-                "are acceptable values for deepspeed engine")
+                f"deepspeed engine only supports "
+                f"rolling batch type {DS_SUPPORTED_ROLLING_BATCH_TYPES}.")
         return rolling_batch
 
     @root_validator()
