@@ -118,7 +118,8 @@ class DeepSpeedService(object):
         if self.enable_rolling_batch:
             from djl_python.rolling_batch.deepspeed_rolling_batch import DeepSpeedRollingBatch
             self.model = self.create_ds_module()
-            if not self.ds_config.get("replace_with_kernel_inject", False):
+            if not self.properties.ds_config.get("replace_with_kernel_inject",
+                                                 False):
                 raise ValueError(
                     f"option.rolling_batch=deepspeed only works with kernel_injection models: {OPTIMIZED_MODEL_TYPES}"
                 )
@@ -128,11 +129,6 @@ class DeepSpeedService(object):
                 "max_seq_len": int(properties.get("max_seq_len", 1024)),
                 "tokenizer": self.tokenizer
             }
-            if not self.properties.ds_config.get("replace_with_kernel_inject",
-                                                 False):
-                raise ValueError(
-                    f"option.rolling_batch=deepspeed only works with kernel_injection models: {OPTIMIZED_MODEL_TYPES}"
-                )
             if "output_formatter" in properties:
                 kwargs["output_formatter"] = properties.get("output_formatter")
             self.rolling_batch = DeepSpeedRollingBatch(self.model,
