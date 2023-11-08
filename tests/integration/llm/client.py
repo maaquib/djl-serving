@@ -395,6 +395,39 @@ lmi_dist_aiccl_model_spec = {
     },
 }
 
+deepspeed_rolling_batch_model_spec = {
+    "gpt-neox-20b": {
+        "max_memory_per_gpu": [25.0],
+        "batch_size": [1],
+        "seq_length": [64, 128, 256],
+        "stream_output": True
+    },
+    "falcon-7b": {
+        "max_memory_per_gpu": [25.0],
+        "batch_size": [1],
+        "seq_length": [64, 128, 256],
+        "stream_output": True
+    },
+    "open-llama-7b": {
+        "max_memory_per_gpu": [25.0],
+        "batch_size": [1],
+        "seq_length": [64, 128, 256],
+        "stream_output": True
+    },
+    "gpt2": {
+        "max_memory_per_gpu": [25.0],
+        "batch_size": [1],
+        "seq_length": [64, 128, 256],
+        "stream_output": True
+    },
+    "llama2-13b-smoothquant": {
+        "max_memory_per_gpu": [21.0],
+        "batch_size": [1],
+        "seq_length": [64, 128, 256],
+        "stream_output": True
+    },
+}
+
 
 def check_worker_number(desired):
     model_name = get_model_name()
@@ -807,6 +840,8 @@ if __name__ == "__main__":
         test_ds_smoothquant(args.model, ds_smoothquant_model_spec)
     elif args.handler == "lmi_dist_aiccl":
         test_handler(args.model, lmi_dist_aiccl_model_spec)
+    elif args.handler == "deepspeed_rolling_batch":
+        test_handler(args.model, deepspeed_rolling_batch_model_spec)
     else:
         raise ValueError(
             f"{args.handler} is not one of the supporting handler")

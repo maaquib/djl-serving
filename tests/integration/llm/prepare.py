@@ -550,6 +550,42 @@ lmi_dist_aiccl_model_list = {
     },
 }
 
+deepspeed_rolling_batch_model_list = {
+    "gpt-neox-20b": {
+        "option.model_id": "s3://djl-llm/gpt-neox-20b",
+        "option.task": "text-generation",
+        "option.tensor_parallel_degree": 4,
+        "option.max_rolling_batch_size": 4
+    },
+    "falcon-7b": {
+        "option.model_id": "tiiuae/falcon-7b",
+        "option.task": "text-generation",
+        "option.tensor_parallel_degree": 1,
+        "option.revision": "2f5c3cd4eace6be6c0f12981f377fb35e5bf6ee5",
+        "option.max_rolling_batch_size": 4,
+        "option.trust_remote_code": True
+    },
+    "open-llama-7b": {
+        "option.model_id": "s3://djl-llm/open-llama-7b",
+        "option.task": "text-generation",
+        "option.tensor_parallel_degree": 4,
+        "option.max_rolling_batch_size": 4
+    },
+    "gpt2": {
+        "option.model_id": "gpt2",
+        "option.task": "text-generation",
+        "option.tensor_parallel_degree": 1,
+        "option.max_rolling_batch_size": 2
+    },
+    "llama2-13b-smoothquant": {
+        "option.model_id": "TheBloke/Llama-2-13B--fp16",
+        "option.task": "text-generation",
+        "option.tensor_parallel_degree": 4,
+        "option.max_rolling_batch_size": 4,
+        "option.quantize": "smoothquant"
+    },
+}
+
 
 def write_model_artifacts(properties,
                           requirements=None,
@@ -761,6 +797,18 @@ def build_lmi_dist_aiccl_model(model):
     write_model_artifacts(options)
 
 
+def build_deepspeed_rolling_batch_model(model):
+    if model not in deepspeed_rolling_batch_model_list.keys():
+        raise ValueError(
+            f"{model} is not one of the supporting handler {list(deepspeed_rolling_batch_model_list.keys())}"
+        )
+    options = deepspeed_rolling_batch_model_list[model]
+    options["engine"] = "DeepSpeed"
+    options["option.rolling_batch"] = "deepspeed"
+    options["option.output_formatter"] = "jsonlines"
+    write_model_artifacts(options)
+
+
 supported_handler = {
     'deepspeed': build_ds_handler_model,
     'huggingface': build_hf_handler_model,
@@ -776,6 +824,7 @@ supported_handler = {
     'unmerged_lora': build_unmerged_lora_correctness_model,
     'deepspeed_smoothquant': build_ds_smoothquant_model,
     'lmi_dist_aiccl': build_lmi_dist_aiccl_model,
+    'deepspeed_rolling_batch': build_deepspeed_rolling_batch_model,
 }
 
 if __name__ == '__main__':

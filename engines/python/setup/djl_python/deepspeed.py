@@ -145,18 +145,33 @@ class DeepSpeedService(object):
 
         self.quantize_mode = None
         self.smoothquant_alpha = None
+        self.enable_rolling_batch = False
+        self.rolling_batch = None
 
     def initialize(self, properties: dict):
         self._parse_properties(properties)
         self._read_model_config()
         self._validate_model_type_and_task()
-        self.create_model_pipeline()
+        if self.enable_rolling_batch:
+            from djl_python.rolling_batch.deepspeed_rolling_batch import DeepSpeedRollingBatch
+            self.model = self.create_ds_module()
+            kwargs = {
+                "max_batch_size":
+                int(properties.get("max_rolling_batch_size", 4)),
+                "max_seq_len": 1024,
+                "tokenizer": self.tokenizer
+            }
+            self.rolling_batch = DeepSpeedRollingBatch(self.model, self.device,
+                                                       properties, **kwargs)
+        else:
+            self.create_model_pipeline()
         self.logger.info(
             f"Initialized DeepSpeed model with the following configurations\n"
             f"model: {self.model_id_or_path}\n"
             f"task: {self.task}\n"
             f"data_type: {self.ds_config['dtype']}\n"
-            f"tensor_parallel_degree: {self.tensor_parallel_degree}\n")
+            f"tensor_parallel_degree: {self.tensor_parallel_degree}\n"
+            f"rolling_batch: {self.enable_rolling_batch}\n")
         self.initialized = True
 
     def _parse_properties(self, properties):
@@ -180,6 +195,14 @@ class DeepSpeedService(object):
                 "trust_remote_code").lower() == "true"
         if "revision" in properties:
             self.revision = properties['revision']
+        if properties.get("rolling_batch") is None:
+            self.enable_rolling_batch = False
+        elif properties.get("rolling_batch") in ["deepspeed", "auto"]:
+            self.enable_rolling_batch = True
+        else:
+            raise ValueError(
+                "Only `option.rolling_batch=auto` and `option.rolling_batch=deepspeed` "
+                "are acceptable values for deepspeed engine")
 
         # SmoothQuant properties
         self._parse_smoothquant_properties(properties)
@@ -371,7 +394,7 @@ class DeepSpeedService(object):
 
         return model, tokenizer, state_dict_mmap
 
-    def create_model_pipeline(self):
+    def create_ds_module(self):
         # If a ds checkpoint is provided, we instantiate model with meta tensors. weights loaded when DS engine invoked
         # Workaround on int8. fp16 fp32 bf16 init supported
         dtype = torch.float16 if self.data_type == torch.int8 else self.data_type
@@ -434,8 +457,10 @@ class DeepSpeedService(object):
         if smoothing_config.get("calibrate", False):
             smoothing_config["tokenizer"] = self.tokenizer
 
-        self.model = deepspeed.init_inference(model, self.ds_config)
+        return deepspeed.init_inference(model, self.ds_config)
 
+    def create_model_pipeline(self):
+        self.model = self.create_ds_module()
         # Don't create a "pipeline" if we're streaming or text-generation task, since those don't use a pipeline
         if self.enable_streaming or self.task == "text-generation":
             return
@@ -478,23 +503,27 @@ class DeepSpeedService(object):
                 content_type = item.get_property("Content-Type")
                 input_map = decode(item, content_type)
                 _inputs = input_map.pop("inputs", input_map)
-                if first:
-                    parameters.append(input_map.pop("parameters", {}))
-                    first = False
-                else:
-                    param = input_map.pop("parameters", {})
-                    if parameters[0] != param:
-                        logging.warning(
-                            f"expected param: {parameters}, actual: {param}")
-                        raise ValueError(
-                            "In order to enable dynamic batching, all input batches must have the same parameters"
-                        )
-                if isinstance(_inputs, list):
-                    input_data.extend(_inputs)
-                    input_size.append(len(_inputs))
-                else:
-                    input_data.append(_inputs)
-                    input_size.append(1)
+                _param = input_map.pop("parameters", {})
+                if not self.enable_rolling_batch:
+                    if first:
+                        parameters.append(_param)
+                        first = False
+                    else:
+                        if parameters[0] != _param:
+                            logging.warning(
+                                f"expected param: {parameters}, actual: {_param}"
+                            )
+                            raise ValueError(
+                                "In order to enable dynamic batching, all input batches must have the same parameters"
+                            )
+                if not isinstance(_inputs, list):
+                    _inputs = [_inputs]
+                input_data.extend(_inputs)
+                input_size.append(len(_inputs))
+                if self.enable_rolling_batch:
+                    for _ in range(input_size[i]):
+                        parameters.append(_param)
+
             except Exception as e:  # pylint: disable=broad-except
                 logging.exception(f"Parse input failed: {i}")
                 errors[i] = str(e)
@@ -502,12 +531,33 @@ class DeepSpeedService(object):
         return input_data, input_size, parameters, errors, batch
 
     def inference(self, inputs: Input):
-
-        input_data, input_size, parameters, errors, batch = self.parse_input(
+        input_data, input_size, params, errors, batch = self.parse_input(
             inputs)
-        parameters = parameters[0]
+        parameters = params[0]
 
         outputs = Output()
+        if self.enable_rolling_batch:
+            if inputs.get_property("reset_rollingbatch"):
+                self.rolling_batch.reset()
+            result = self.rolling_batch.inference(input_data, params)
+            idx = 0
+            for i in range(len(batch)):
+                err = errors.get(i)
+                if err:
+                    err = {"data": "", "last": True, "code": 424, "error": err}
+                    outputs.add(Output.binary_encode(err),
+                                key="data",
+                                batch_index=i)
+                else:
+                    outputs.add(Output.binary_encode(result[idx]),
+                                key="data",
+                                batch_index=i)
+                    idx += 1
+
+            content_type = self.rolling_batch.get_content_type()
+            if content_type:
+                outputs.add_property("content-type", content_type)
+            return outputs
         if self.enable_streaming:
             if len(batch) > 1:
                 raise NotImplementedError(
