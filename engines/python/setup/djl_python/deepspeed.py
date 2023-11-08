@@ -111,7 +111,8 @@ class DeepSpeedService(object):
 
     def initialize(self, properties: dict):
         self.properties = DeepSpeedProperties(**properties)
-        self.enable_rolling_batch = is_rolling_batch_enabled(self.properties.rolling_batch)
+        self.enable_rolling_batch = is_rolling_batch_enabled(
+            self.properties.rolling_batch)
         self._read_model_config()
         self._validate_model_type_and_task()
         if self.enable_rolling_batch:
@@ -145,8 +146,7 @@ class DeepSpeedService(object):
             f"task: {self.properties.task}\n"
             f"data_type: {self.properties.ds_config['dtype']}\n"
             f"tensor_parallel_degree: {self.properties.tensor_parallel_degree}\n"
-            f"rolling_batch: {self.enable_rolling_batch}\n"
-        )
+            f"rolling_batch: {self.enable_rolling_batch}\n")
         self.initialized = True
 
     def _validate_model_type_and_task(self):
