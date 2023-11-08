@@ -73,6 +73,14 @@ class DeepSpeedProperties(Properties):
         with open(deepspeed_config_path, "r") as f:
             return json.load(f)
 
+    @validator('rolling_batch')
+    def validate_rolling_batch(cls, rolling_batch) -> bool:
+        if rolling_batch not in ["deepspeed", "auto"]:
+            raise ValueError(
+                "Only `option.rolling_batch=auto` and `option.rolling_batch=deepspeed` "
+                "are acceptable values for deepspeed engine")
+        return rolling_batch
+
     @root_validator()
     def set_dtype(cls, properties):
 
