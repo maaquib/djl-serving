@@ -37,7 +37,6 @@ class DeepSpeedRollingBatch(RollingBatch):
         self.properties = properties
         self.batch_cls = None
         self.batch_id_counter = 0
-        # self.cache = {}
         self.rolling_batch = DeepSpeedRollingBatchGeneration(
             model=model,
             tokenizer=kwargs.get("tokenizer"),
@@ -46,7 +45,6 @@ class DeepSpeedRollingBatch(RollingBatch):
 
     def reset(self):
         self.rolling_batch.rolling_batch.clear()
-        # self.cache.clear()
         self.batch_id_counter = 0
         super().reset()
 

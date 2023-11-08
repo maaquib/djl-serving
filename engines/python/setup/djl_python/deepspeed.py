@@ -402,11 +402,22 @@ class DeepSpeedService(object):
         return input_data, input_size, parameters, errors, batch
 
     def inference(self, inputs: Input):
+        outputs = Output()
         input_data, input_size, params, errors, batch = self.parse_input(
             inputs)
+        if len(input_data) == 0:
+            for i in range(len(batch)):
+                err = errors.get(i)
+                if self.enable_rolling_batch:
+                    err = {"data": "", "last": True, "code": 424, "error": err}
+                    outputs.add(Output.binary_encode(err),
+                                key="data",
+                                batch_index=i)
+                else:
+                    outputs.add(err, key="data", batch_index=i)
+            return outputs
         parameters = params[0]
 
-        outputs = Output()
         if self.enable_rolling_batch:
             if inputs.get_property("reset_rollingbatch"):
                 self.rolling_batch.reset()
