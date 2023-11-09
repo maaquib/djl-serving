@@ -60,9 +60,8 @@ class DeepSpeedRollingBatch(RollingBatch):
         :param parameters: List of kwargs for each request in a batch
         :return: generated batch decoded tokens
         """
-        batch_size = len(input_data)
         new_requests = self.get_new_requests(input_data, parameters,
-                                             batch_size)
+                                             len(input_data))
         new_batch = self.preprocess_requests(new_requests)
         if new_batch or len(self.active_requests) > 0:
             self._prefill_and_decode(new_batch)
@@ -71,8 +70,9 @@ class DeepSpeedRollingBatch(RollingBatch):
     def _prefill_and_decode(self, new_batch):
         if new_batch:
             batch = new_batch
-            # TODO(mohaan) error requests handling
-            generations, errors = self.rolling_batch.prefill_batch(batch)
+            generations, error_requests = self.rolling_batch.prefill_batch(
+                batch)
+            self.error_requests = error_requests
         else:
             generations = self.rolling_batch.generate_token()
         for request in self.active_requests:

@@ -145,6 +145,7 @@ class RollingBatch(ABC):
         self.device = device
         self.pending_requests = []
         self.active_requests = []
+        self.error_requests = []
         self.req_id_counter = 0
         self.output_formatter = None
         self.waiting_steps = kwargs.get("waiting_steps", None)
@@ -164,6 +165,7 @@ class RollingBatch(ABC):
     def reset(self):
         self.pending_requests = []
         self.active_requests = []
+        self.error_requests = []
         self.req_id_counter = 0
 
     @abstractmethod
@@ -204,9 +206,21 @@ class RollingBatch(ABC):
 
     def postprocess_results(self):
         results = []
-        for i in range(len(self.active_requests)):
-            req = self.active_requests[i]
-            res = {"data": req.get_next_token(), "last": req.is_last_token()}
+        err_ids = [r.id for r in self.error_requests]
+        for req in self.active_requests:
+            if req.id in err_ids:
+                # TODO(mohaan): Add failure reason
+                res = {
+                    "data": "",
+                    "last": True,
+                    "code": 424,
+                    "error": f"Failure for: {req.input_text}"
+                }
+            else:
+                res = {
+                    "data": req.get_next_token(),
+                    "last": req.is_last_token()
+                }
             results.append(res)
 
         # add empty tokens to pending requests
@@ -216,7 +230,11 @@ class RollingBatch(ABC):
             results.append(res)
 
         self.active_requests = [
-            req for req in self.active_requests if not req.is_last_token()
+            req for req in self.active_requests
+            if not req.is_last_token() and req.id not in err_ids
+        ]
+        self.pending_requests = [
+            req for req in self.pending_requests if req.id not in err_ids
         ]
 
         if len(self.active_requests) + len(self.pending_requests) == 0:
