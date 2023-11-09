@@ -44,7 +44,7 @@ class DeepSpeedRollingBatch(RollingBatch):
             max_seq_len=kwargs.get("max_seq_len"))
 
     def reset(self):
-        self.rolling_batch.rolling_batch.clear()
+        # self.rolling_batch.rolling_batch.clear()
         self.batch_id_counter = 0
         super().reset()
 

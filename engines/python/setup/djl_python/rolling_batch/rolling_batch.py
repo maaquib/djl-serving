@@ -206,15 +206,14 @@ class RollingBatch(ABC):
 
     def postprocess_results(self):
         results = []
-        err_ids = [r.id for r in self.error_requests]
+        err_reqs = dict((r.id, err) for r, err in self.error_requests)
         for req in self.active_requests:
-            if req.id in err_ids:
-                # TODO(mohaan): Add failure reason
+            if req.id in err_reqs.keys():
                 res = {
                     "data": "",
                     "last": True,
                     "code": 424,
-                    "error": f"Failure for: {req.input_text}"
+                    "error": f"Request: `{req.input_text}` failed due to: {err_reqs.get(req.id)}"
                 }
             else:
                 res = {
@@ -231,10 +230,10 @@ class RollingBatch(ABC):
 
         self.active_requests = [
             req for req in self.active_requests
-            if not req.is_last_token() and req.id not in err_ids
+            if not req.is_last_token() and req.id not in err_reqs.keys()
         ]
         self.pending_requests = [
-            req for req in self.pending_requests if req.id not in err_ids
+            req for req in self.pending_requests if req.id not in err_reqs.keys()
         ]
 
         if len(self.active_requests) + len(self.pending_requests) == 0:
