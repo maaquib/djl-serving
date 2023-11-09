@@ -78,8 +78,10 @@ class DeepSpeedProperties(Properties):
         with open(deepspeed_config_path, "r") as f:
             return json.load(f)
 
-    @validator('rolling_batch')
+    @validator('rolling_batch', pre=True)
     def validate_rolling_batch(cls, rolling_batch) -> bool:
+        if rolling_batch == RollingBatchEnum.disable.value:
+            return rolling_batch
         if rolling_batch not in DS_SUPPORTED_ROLLING_BATCH_TYPES:
             raise ValueError(
                 f"deepspeed engine only supports "
