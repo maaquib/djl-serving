@@ -9,7 +9,7 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS"
 # BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for
 # the specific language governing permissions and limitations under the License.
-ARG version=11.8.0-cudnn8-devel-ubuntu20.04
+ARG version=11.8.0-cudnn8-runtime-ubuntu20.04
 FROM nvidia/cuda:$version
 ARG cuda_version=cu118
 ARG djl_version=0.24.0~SNAPSHOT
@@ -58,7 +58,7 @@ ENV USE_AICCL_BACKEND=true
 
 ENTRYPOINT ["/usr/local/bin/dockerd-entrypoint.sh"]
 CMD ["serve"]
-COPY deepspeed-0.10.0+4da0d974-py2.py3-none-any.whl /usr/local/bin/deepspeed-test-py2.py3-none-any.whl
+
 COPY scripts scripts/
 RUN mkdir -p /opt/djl/conf && \
     mkdir -p /opt/djl/deps && \
@@ -70,7 +70,7 @@ COPY partition /opt/djl/partition
 COPY distribution[s]/ ./
 RUN mv *.deb djl-serving_all.deb || true
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq libaio-dev libopenmpi-dev vim && \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq libaio-dev libopenmpi-dev && \
     scripts/install_djl_serving.sh $djl_version && \
     mkdir -p /opt/djl/bin && cp scripts/telemetry.sh /opt/djl/bin && \
     echo "${djl_version} deepspeed" > /opt/djl/bin/telemetry && \
@@ -80,7 +80,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq libaio-
     apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install torch==${torch_version} torchvision==${torch_vision_version} --extra-index-url https://download.pytorch.org/whl/cu118 \
-    /usr/local/bin/deepspeed-test-py2.py3-none-any.whl ${seq_scheduler_wheel} ${peft_wheel} ${mmaploader_wheel} ${aiccl_wheel} protobuf==${protobuf_version} \
+    ${deepspeed_wheel} ${seq_scheduler_wheel} ${peft_wheel} ${mmaploader_wheel} ${aiccl_wheel} protobuf==${protobuf_version} \
     transformers==${transformers_version} zstandard datasets==${datasets_version} \
     mpi4py sentencepiece einops accelerate==${accelerate_version} bitsandbytes==${bitsandbytes_version} \
     optimum==${optimum_version} auto-gptq==${auto_gptq_version} pandas pyarrow \
