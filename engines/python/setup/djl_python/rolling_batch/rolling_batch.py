@@ -210,10 +210,14 @@ class RollingBatch(ABC):
         for req in self.active_requests:
             if req.id in err_reqs.keys():
                 res = {
-                    "data": "",
-                    "last": True,
-                    "code": 424,
-                    "error": f"Request: `{req.input_text}` failed due to: {err_reqs.get(req.id)}"
+                    "data":
+                    "",
+                    "last":
+                    True,
+                    "code":
+                    424,
+                    "error":
+                    f"Request: `{req.input_text}` failed due to: {err_reqs.get(req.id)}"
                 }
             else:
                 res = {
@@ -233,7 +237,8 @@ class RollingBatch(ABC):
             if not req.is_last_token() and req.id not in err_reqs.keys()
         ]
         self.pending_requests = [
-            req for req in self.pending_requests if req.id not in err_reqs.keys()
+            req for req in self.pending_requests
+            if req.id not in err_reqs.keys()
         ]
 
         if len(self.active_requests) + len(self.pending_requests) == 0:
