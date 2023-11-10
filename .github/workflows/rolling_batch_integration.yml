@@ -394,7 +394,6 @@ jobs:
           path: tests/integration/logs/
 
   deepspeed-test:
-    if: contains(fromJson('["", "deepspeed"]'), github.event.inputs.run_test)
     runs-on: [ self-hosted, g5 ]
     timeout-minutes: 60
     needs: create-runners
